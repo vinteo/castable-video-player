@@ -1,0 +1,358 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../google-castable-video/google-castable-video.html">
+<link rel="import" href="../iron-icons/iron-icons.html">
+<link rel="import" href="../iron-icons/av-icons.html">
+<link rel="import" href="../iron-icons/hardware-icons.html">
+<link rel="import" href="../paper-slider/paper-slider.html">
+<link rel="import" href="../paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../neon-animation/neon-animation.html">
+
+<!--
+An element providing a video player for <google-castable-video>
+
+Example:
+
+    <castable-video-player>
+      <source src="http://commondatastorage.googleapis.com/gtv-videos-bucket/big_buck_bunny_1080p.mp4" type="video/mp4">
+    </castable-video-player>
+
+@demo
+-->
+<dom-module id="castable-video-player">
+
+  <style>
+    :host {
+      display: inline-block;
+      box-sizing: border-box;
+      background-color: rgba(0, 0, 0, 1);
+      overflow: hidden;
+      position: relative;
+      font-family: 'Helvetica';
+    }
+
+    #controls {
+      box-sizing: border-box;
+      width: 100%;
+      position: absolute;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: rgba(255, 255, 255, 1);
+    }
+
+    #controls-bar {
+      padding: 0 16px 0 0;
+    }
+
+    #buttons {
+      float: left;
+    }
+
+    #timing {
+      float: right;
+      height: 40px;
+      line-height: 40px;
+    }
+
+    #progress {
+      width: 100%;
+    }
+
+    #cast {
+      display: none;
+    }
+
+
+  </style>
+
+  <template>
+    <video is="google-castable-video" width="{{width}}" height="{{height}}">
+      <content></content>
+    </video>
+    <div id="controls">
+      <div>
+        <paper-slider id="progress" value="0" min="0" max="{{_progressBarSteps}}"></paper-slider>
+      </div>
+      <div id="controls-bar">
+        <div id="buttons">
+          <paper-icon-button id="play" icon="av:play-arrow"></paper-icon-button>
+          <paper-icon-button  id="pause" icon="av:pause"></paper-icon-button>
+          <paper-icon-button  id="cast" icon="hardware:cast"></paper-icon-button>
+        </div>
+        <div id="timing">
+          <span>{{_formatSeconds(videoTime)}}</span><span> / </span><span>{{_formatSeconds(videoDuration)}}</span>
+        </div>
+      </div>
+    </div>
+  </template>
+
+</dom-module>
+
+<script>
+
+  Polymer({
+
+    is: 'castable-video-player',
+
+    behaviors: [
+      Polymer.NeonAnimationRunnerBehavior
+    ],
+
+    properties: {
+
+      /**
+       * Width of player, eg. 640 or 100%
+       * @default 640
+       **/
+
+      width: {
+        type: String,
+        value: function() { return "640" }
+      },
+
+      /**
+       * Height of player, eg. 360 or 100%
+       * @default 360
+       **/
+
+      height: {
+        type: String,
+        value: function() { return "360" }
+      },
+
+      /**
+       * Animation config object
+       * @private
+       **/
+
+      animationConfig: {
+        value: function() {
+          return {
+            'show-controls': {
+              name: 'transform-animation',
+              node: this.$.controls,
+              transformFrom: 'translateY(100%)',
+              transformTo: 'translateY(0)',
+            },
+            'hide-controls': {
+              name: 'transform-animation',
+              node: this.$.controls,
+              transformFrom: 'translateY(0)',
+              transformTo: 'translateY(100%)'
+            }
+          }
+        }
+      }
+    },
+
+    listeners: {
+      'google-castable-video-timeupdate': '_onVideoTimeUpdate',
+      'google-castable-video-receiver-status': '_onCastReceiverStatus',
+      'google-castable-video-casting': '_onCastStatus',
+      'castable-video-player-progress-change': '_onProgressChange',
+      'castable-video-player-hover': '_onHover',
+      'neon-animation-finish': '_onNeonAnimationFinish'
+    },
+
+    /**
+     * Number of steps used for progress slider
+     * @default 10000
+     **/
+
+    _PROGRESS_BAR_STEPS: 10000,
+
+    /**
+     * Time out in milliseconds before hiding controls
+     * @default 2000
+     **/
+
+    _CONTROLS_TIMEOUT: 2000,
+
+    _onHover: function(e) {
+      clearTimeout(this.timeout);
+      if (!this._controlsShown) {
+        this._controlsShown = true;
+        this.controls.style.display = 'block';
+        this.playAnimation('show-controls');
+      }
+      if (this._playing && !this._casting) {
+        clearTimeout(this.timeout);
+        this.timeout = setTimeout(this._onHoverOut.bind(this), this._CONTROLS_TIMEOUT);
+      }
+    },
+
+    _onHoverOut: function(e) {
+      if (this._playing && !this._casting && this._controlsShown) {
+        this._controlsShown = false;
+        this.playAnimation('hide-controls');
+      }
+    },
+
+    _onNeonAnimationFinish: function() {
+      if (!this._controlsShown) { this.controls.style.display = 'none'; }
+    },
+
+    _onVideoTimeUpdate: function(e) {
+      if (this.progressBar.dragging) { return }
+
+      this.videoTime = e.detail.currentTime;
+      this.progressBar.value = this.videoTime * ( this._progressBarSteps / this.videoDuration );
+    },
+
+    _onCastReceiverStatus: function (e) {
+      this.castButton.style.display = e.detail.available ? 'inline-block' : 'none';
+    },
+
+    _onCastStatus: function(e) {
+      this._casting = e.detail.casting;
+      this.castButton.icon = e.detail.casting ? 'hardware:cast-connected' : 'hardware:cast';
+    },
+
+    /**
+       * The `castable-video-player-progress-change` event is fired whenever
+       * the video's playback position is changed via the progress slider.
+       *
+       * @event castable-video-player-progress-change
+       * @param {Object} detail
+       *   @param {Number} detail.value The current video position.
+       */
+
+    _onProgressChange: function(e) {
+      var newPosition = ( this.vid.duration / this._progressBarSteps ) * e.detail.value;
+      this.seek(newPosition);
+    },
+
+    ready: function() {
+      this.vid = document.querySelector('video');
+      this.playButton = document.querySelector('#play')
+      this.pauseButton = document.querySelector('#pause')
+      this.castButton = document.querySelector('#cast')
+      this.progressBar = document.querySelector('#progress')
+      this.controls = document.querySelector('#controls')
+
+      this._progressBarSteps = this._PROGRESS_BAR_STEPS;
+      this.videoDuration = 0;
+      this.videoTime = 0;
+
+      this._playing = false;
+      this._casting = false;
+      this._controlsShown = true;
+      this._togglePlayBackButton();
+
+    },
+
+    attached: function() {
+      var _self = this
+      this.playButton.addEventListener('click', this.play.bind(this));
+      this.pauseButton.addEventListener('click', this.pause.bind(this));
+      this.castButton.addEventListener('click', this.cast.bind(this));
+
+      this.addEventListener('mousemove', function() {
+        this.fire('castable-video-player-hover'); }.bind(this)
+      );
+      this.progressBar.addEventListener('change', function(e) {
+        this.fire('castable-video-player-progress-change', {value: e.target.value});
+      }.bind(this));
+
+      this.vid.addEventListener('durationchange', function(e) {
+        this.videoDuration = this.vid.duration;
+      }.bind(this));
+
+    },
+
+    detached: function() {
+    },
+
+
+    /**
+     * Format seconds to 'HH:mm:ss'
+     *
+     * @method _formatSeconds
+     * @param {Number} value the value in seconds
+     * @return {String} returns seconds in 'HH:mm:ss'
+     */
+
+    _formatSeconds: function(value) {
+      if (!value) { return '--:--' }
+
+      var seconds = Math.round(value % 60);
+      if (seconds < 10) { seconds = '0' + seconds }
+
+      var minutes = Math.floor(value / 60);
+      var hours = Math.floor(minutes / 60);
+      if (hours > 0) {
+        minutes = minutes % 60;
+        if (minutes < 10) { minutes = '0' + minutes; }
+      }
+
+      return hours > 0 ? hours + ':' + minutes + ':' + seconds : minutes + ':' + seconds;
+    },
+
+    _togglePlayBackButton: function() {
+      if (this._playing) {
+        this.playButton.style.display = 'none';
+        this.pauseButton.style.display = 'inline-block';
+      } else {
+        this.playButton.style.display = 'inline-block';
+        this.pauseButton.style.display = 'none';
+      }
+    },
+
+    /**
+     * Play video.
+     *
+     * @method play
+     */
+
+    play: function() {
+      this._playing = true;
+      this._togglePlayBackButton();
+      this.vid.play();
+    },
+
+    /**
+     * Pause video.
+     *
+     * @method pause
+     */
+
+    pause: function() {
+      this.vid.pause();
+      this._playing = false;
+      this._togglePlayBackButton();
+    },
+
+    /**
+     *  Open cast extension menu.
+     *
+     * @method cast
+     */
+
+    cast: function() {
+      this.vid.launchSessionManager();
+    },
+
+     /**
+     *  Seek to new video position
+     *
+     * @method seek
+     * @param {Number} position Position in seconds
+     */
+
+    seek: function(position) {
+      this.pause();
+      this.vid.currentTime = position;
+      this.play();
+    }
+
+  });
+
+</script>
