@@ -1,0 +1,98 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+    <script src="../../web-component-tester/browser.js"></script>
+
+    <!-- Step 1: import the element to test -->
+    <link rel="import" href="../castable-video-player.html">
+  </head>
+  <body>
+
+    <!-- You can use the document as a place to set up your fixtures. -->
+    <castable-video-player>
+      <source src="http://commondatastorage.googleapis.com/gtv-videos-bucket/big_buck_bunny_1080p.mp4" type="video/mp4">
+    </castable-video-player>
+
+    <script>
+      var myEl = document.querySelector('castable-video-player');
+
+      suite('<castable-video-player>', function() {
+
+        test('shows play button and hides pause button', function() {
+          assert.equal(myEl.playButton.style.display, 'inline-block');
+          assert.equal(myEl.pauseButton.style.display, 'none');
+        });
+
+        test('plays video', function() {
+          myEl.play();
+          assert.equal(myEl._playing, true);
+          assert.equal(myEl.pauseButton.style.display, 'inline-block');
+          assert.equal(myEl.playButton.style.display, 'none');
+        });
+
+        test('seeks video', function() {
+          myEl.seek(10);
+          assert.equal(myEl._playing, true);
+          assert.equal(myEl.vid.currentTime, 10);
+          assert.equal(myEl.pauseButton.style.display, 'inline-block');
+          assert.equal(myEl.playButton.style.display, 'none');
+        });
+
+        test('pause video', function() {
+          myEl.pause()
+          assert.equal(myEl._playing, false);
+          assert.equal(myEl.playButton.style.display, 'inline-block');
+          assert.equal(myEl.pauseButton.style.display, 'none');
+        });
+
+        test('update progress slider', function() {
+          myEl.progressBar.dragging = false;
+          myEl._onVideoTimeUpdate({detail: {currentTime: 100}});
+          assert.equal(myEl.videoTime, 100);
+        });
+
+        test('show/hide cast button', function() {
+          myEl._onCastReceiverStatus({detail: {available: true}});
+          assert.equal(myEl.castButton.style.display, 'inline-block');
+
+          myEl._onCastReceiverStatus({detail: {available: false}});
+          assert.equal(myEl.castButton.style.display, 'none');
+        });
+
+        test('update cast button and status', function() {
+          myEl._onCastStatus({detail: {casting: true}});
+          assert.equal(myEl._casting, true);
+          assert.equal(myEl.castButton.icon, 'hardware:cast-connected');
+
+          myEl._onCastStatus({detail: {casting: false}});
+          assert.equal(myEl._casting, false);
+          assert.equal(myEl.castButton.icon, 'hardware:cast');
+        });
+
+        test('format seconds', function() {
+          assert.equal(myEl._formatSeconds(1), '0:01');
+          assert.equal(myEl._formatSeconds(11), '0:11');
+          assert.equal(myEl._formatSeconds(71), '1:11');
+          assert.equal(myEl._formatSeconds(611), '10:11');
+          assert.equal(myEl._formatSeconds(3611), '1:00:11');
+        });
+
+
+      });
+    </script>
+
+  </body>
+</html>
