@@ -7,7 +7,7 @@ An element with player controls for [google-castable-video](https://github.com/G
 
 Install via [Bower](http://bower.io/) using:
 
-    bower install castable-video-player
+    bower install vinteo/castable-video-player
 
 
 ## Usage
@@ -29,3 +29,9 @@ You can set the player size:
       <source src="http://commondatastorage.googleapis.com/gtv-videos-bucket/big_buck_bunny_1080p.mp4" type="video/mp4">
     </castable-video-player>
 
+More information can be found at the [component documentation](http://vinteo.github.io/castable-video-player/) page.
+
+
+## Demo
+
+View a demo [here](http://vinteo.github.io/castable-video-player/components/castable-video-player/demo/).
